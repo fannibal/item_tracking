@@ -183,7 +183,7 @@ class Item(Component):
                 d /= self.distWeight
                 return d
             else:
-                return np.nan
+                return np.inf
         elif self.ref == self.POINTCLOUD:
             pass  # TODO
 
@@ -192,7 +192,8 @@ class Item(Component):
         :param other: Item
         Update self from other
         """
-        for oldComp in other.components:
+        self.setID(other.getID())
+        for oldComp in other.components.values():
             name = oldComp.name
             if name in self.components.keys():  # speed relevant
                 if oldComp.status == Component.ON_SIGHT:

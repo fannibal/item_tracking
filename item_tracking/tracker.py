@@ -39,6 +39,7 @@ class Tracker(object):
         self.updateTracks(toUpdate)
         self.deleteTracks(toDelete)
         self.trackedItems = self.newItems
+        self.newItems = []
 
     def barycenters(self):
         for item in self.newItems:
@@ -67,9 +68,9 @@ class Tracker(object):
                 checked[0].append(c)
                 checked[1].append(l)
                 for i in range(cSize):  # avoid using same new skeletton twice
-                    self.distance[l][i] = np.nan
+                    self.distance[l][i] = np.inf
                 for j in range(lSize):  # avoid using same old skeletton twice
-                    self.distance[j][c] = np.nan
+                    self.distance[j][c] = np.inf
                 mini = np.nanmin(self.distance)
 
         # no matching skelettons
@@ -117,7 +118,18 @@ class Tracker(object):
 
 if __name__ == "__main__":
     tracker = Tracker()
-    item1 = Item()
-    item1.addComponent("maincComp", x=0, y=0, z=0, rx=0, ry=0, rz=0)
-    tracker.addItem(item1)
-    tracker.updateTracking()
+    itemList = []
+    for t in np.arange(0,10,0.1):  # 2 items move on the x axis
+        itemList.append([])
+        i1, i2 = 2+t, 1-t
+        itemList[-1].append(i1)
+        itemList[-1].append(i2)
+
+    for k in range(len(itemList)):
+        for it in itemList[k]:
+            item = Item()
+            item.addComponent("onlyComp", x=it, y=0, z=0, rx=0, ry=0, rz=0)
+            tracker.addItem(item)
+        tracker.updateTracking()
+        for trackedItem in tracker.trackedItems:
+            print(trackedItem.getID(), trackedItem.x)
