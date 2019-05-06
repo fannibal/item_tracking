@@ -10,4 +10,4 @@ The tracking matches check each iteration the evolution of tracked items dependi
 Examples of how this package can be used are in the directory examples.
 
 ## Installation
-`pip install --index-url https://test.pypi.org/simple/ item_tracking` should work for most users.
+`pip install item_tracking` should work for most users.
