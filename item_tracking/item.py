@@ -61,7 +61,7 @@ class Component(object):
             self.distWeight = distWeight
         if baryWeight is not None:
             self.baryWeight = baryWeight
-        if rz is not None:
+        if speedWeight is not None:
             self.speedWeight = speedWeight
 
     def updateParents(self, parents=None):
@@ -178,6 +178,22 @@ class Item(Component):
                     self.speed += component.speed
                     self.speedWeight += component.speedWeight
             self.speed /= self.speedWeight
+        elif self.ref == self.POINTCLOUD and self.pointCloud is not None:
+            pass  # TODO
+        else:
+            print("empty item, fill it first")
+
+    def getParents(self):
+        if self.ref == self.COMPONENTS and len(self.components):
+            names = []
+            L = dict()
+            for component in self.components.values():
+                if component.status == self.ON_SIGHT:
+                    names.append(component.name)
+            for compName in names:
+                for parent in self.components[compName].parents:
+                    L.setdefault(compName, []).append(parent)
+            return L
         elif self.ref == self.POINTCLOUD and self.pointCloud is not None:
             pass  # TODO
         else:
