@@ -8,14 +8,14 @@ from scipy.stats import circmean
 
 class ItemHandler(object):
 
-    ADD = 1
+    NEW = 1
     UPDATE = 2
-    DELETE = 3
+    LOST = 3
 
-    def __init__(self):
+    def __init__(self, lastTimeSeen=None):
         self.ID = None
-        self.lastTimeSeen = time.time()
-        self.state = self.ADD
+        self.lastTimeSeen = lastTimeSeen
+        self.state = self.NEW
 
 
 class Component(object):
@@ -38,6 +38,7 @@ class Component(object):
         self.speed = None
         self.acceleration = None
         self.status = self.ON_SIGHT
+        self.parents = []
 
     def updatePose(self, x=None, y=None, z=None):
         if x is not None:
@@ -55,11 +56,28 @@ class Component(object):
         if rz is not None:
             self.rz = rz
 
+    def updateWeights(self, distWeight=None, baryWeight=None, speedWeight=None):
+        if distWeight is not None:
+            self.distWeight = distWeight
+        if baryWeight is not None:
+            self.baryWeight = baryWeight
+        if rz is not None:
+            self.speedWeight = speedWeight
+
+    def updateParents(self, parents=None):
+        if parents is not None:
+            self.parents = parents
+
     def fullUpdate(self, **kwargs):
         x, y, z = kwargs.get('x', None), kwargs.get('y', None), kwargs.get('z', None)
         rx, ry, rz = kwargs.get('rx', None), kwargs.get('ry', None), kwargs.get('rz', None)
+        distWeight, baryWeight, speedWeight = kwargs.get('distWeight', None), kwargs.get('baryWeight', None), kwargs.get('speedWeight', None)
+        parents = kwargs.get('parents', None)
+
         self.updatePose(x, y, z)
         self.updateOrientation(rx, ry, rz)
+        self.updateWeights(distWeight, baryWeight, speedWeight)
+        self.updateParents(parents)
 
     def fullGet(self):
         return self.x, self.y, self.z, self.rx, self.ry, self.rz
@@ -76,9 +94,9 @@ class Item(Component):
     COMPONENTS = 1
     POINTCLOUD = 2
 
-    def __init__(self, name=""):
+    def __init__(self, name="", lastTimeSeen=None):
         Component.__init__(self, name=name)
-        self.itemHandler = ItemHandler()
+        self.itemHandler = ItemHandler(lastTimeSeen=lastTimeSeen)
         self.ref = self.COMPONENTS
         self.components = dict()
         self.pointCloud = None
@@ -102,7 +120,7 @@ class Item(Component):
     def getTime(self):
         return self.itemHandler.lastTimeSeen
 
-    def addComponent(self, name, **kwargs):
+    def setComponent(self, name, **kwargs):
         """
         :param name: name of the component to add
         :param kwargs: x=0.5, ry=0.11, ...
@@ -199,7 +217,8 @@ class Item(Component):
                 if oldComp.status == Component.ON_SIGHT:
                     deltaPose = self.components[name].dist(oldComp)
                     deltaTime = self.getTime() - other.getTime()
-                    self.components[name].speed = deltaPose / deltaTime
+                    if deltaTime != 0:
+                        self.components[name].speed = deltaPose / deltaTime
                 else:
                     self.components[name].speed = None
             else:  # keep track record even if lost

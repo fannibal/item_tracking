@@ -34,10 +34,10 @@ class Tracker(object):
     def updateTracking(self):
         self.barycenters()
         self.distanceCompute()
-        toAdd, toUpdate, toDelete = self.matchingDistanceDecider()
-        self.addTracks(toAdd)
-        self.updateTracks(toUpdate)
-        self.deleteTracks(toDelete)
+        new, updating, lost = self.matchingDistanceDecider()
+        self.addTracks(new)
+        self.updateTracks(updating)
+        self.deleteTracks(lost)
         self.trackedItems = self.newItems
         self.newItems = []
 
@@ -87,7 +87,7 @@ class Tracker(object):
 
     def updateTracks(self, toUpdate):
         for old, new in toUpdate:
-            if self.trackedItems[old].getState() == ItemHandler.ADD:
+            if self.trackedItems[old].getState() == ItemHandler.NEW:
                 now = self.now()
                 if (now - self.trackedItems[old].getTime()) >= self.time_add:
                     self.newItems[new].setTime(now)
@@ -96,6 +96,7 @@ class Tracker(object):
                     self.newItems[new].setTime(self.trackedItems[old].getTime())
             elif self.trackedItems[old].getState() == ItemHandler.UPDATE:
                 self.newItems[new].setTime(self.now())
+                self.newItems[new].setState(ItemHandler.UPDATE)
             else:
                 self.newItems[new].setState(ItemHandler.UPDATE)
                 self.newItems[new].setTime(self.now())
@@ -104,11 +105,11 @@ class Tracker(object):
     def deleteTracks(self, toDelete):
         for old in toDelete:
             delItem = self.trackedItems[old]
-            if delItem.getState() == ItemHandler.ADD:  # ADD case : suppress entry
-                delItem.setState(ItemHandler.DELETE)
+            if delItem.getState() == ItemHandler.NEW:  # ADD case : suppress entry
+                delItem.setState(ItemHandler.LOST)
                 delItem.status = Item.UNKNOWN
             elif delItem.getState() == ItemHandler.UPDATE:  # UPDATE case : change status
-                delItem.setState(ItemHandler.DELETE)
+                delItem.setState(ItemHandler.LOST)
                 delItem.status = Item.UNKNOWN
                 self.addItem(delItem)
             else:  # DELETE case : if gone for too long, suppress entry
