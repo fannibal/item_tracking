@@ -192,7 +192,8 @@ class Item(Component):
                     names.append(component.name)
             for compName in names:
                 for parent in self.components[compName].parents:
-                    L.setdefault(compName, []).append(parent)
+                    if parent in names:
+                        L.setdefault(compName, []).append(parent)
             return L
         elif self.ref == self.POINTCLOUD and self.pointCloud is not None:
             pass  # TODO
