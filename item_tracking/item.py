@@ -134,9 +134,9 @@ class Item(Component):
             for component in self.components.values():
                 if component.status == self.ON_SIGHT:
                     try:
-                        self.x += component.x
-                        self.y += component.y
-                        self.z += component.z
+                        self.x += component.x * component.baryWeight
+                        self.y += component.y * component.baryWeight
+                        self.z += component.z * component.baryWeight
                         self.baryWeight += component.baryWeight
                     except TypeError as e:
                         print("{} : forgot to setup component".format(e))
