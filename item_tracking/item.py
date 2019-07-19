@@ -212,8 +212,9 @@ class Item(Component):
                 if selfComp.name in other.components.keys():
                     otherComp = other.components[selfComp.name]
                     if selfComp.status == Component.ON_SIGHT and otherComp.status == Component.ON_SIGHT:
-                        d += selfComp.dist(otherComp)
-                        self.distWeight += selfComp.distWeight
+                        meanWeight = (selfComp.distWeight + otherComp.distWeight)/2.
+                        d += selfComp.dist(otherComp) * meanWeight
+                        self.distWeight += meanWeight
             if self.distWeight != 0:
                 d /= self.distWeight
                 return d
