@@ -87,20 +87,21 @@ class Tracker(object):
 
     def updateTracks(self, toUpdate):
         for old, new in toUpdate:
-            if self.trackedItems[old].getState() == ItemHandler.NEW:
+            elder, youngster = self.trackedItems[old], self.newItems[new]
+            if elder.getState() == ItemHandler.NEW:
                 now = self.now()
-                if (now - self.trackedItems[old].getTime()) >= self.time_add:
-                    self.newItems[new].setTime(now)
-                    self.newItems[new].setState(ItemHandler.UPDATE)
+                if (now - elder.getTime()) >= self.time_add:
+                    youngster.setTime(now)
+                    youngster.setState(ItemHandler.UPDATE)
                 else:
-                    self.newItems[new].setTime(self.trackedItems[old].getTime())
-            elif self.trackedItems[old].getState() == ItemHandler.UPDATE:
-                self.newItems[new].setTime(self.now())
-                self.newItems[new].setState(ItemHandler.UPDATE)
+                    youngster.setTime(elder.getTime())
+            elif elder.getState() == ItemHandler.UPDATE:
+                youngster.setTime(self.now())
+                youngster.setState(ItemHandler.UPDATE)
             else:
-                self.newItems[new].setState(ItemHandler.UPDATE)
-                self.newItems[new].setTime(self.now())
-            _ = self.trackedItems[old] > self.newItems[new]
+                youngster.setState(ItemHandler.UPDATE)
+                youngster.setTime(self.now())
+            _ = elder > youngster
 
     def deleteTracks(self, toDelete):
         for old in toDelete:

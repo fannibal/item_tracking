@@ -35,7 +35,9 @@ class Component(object):
         self.distWeight = 1.
         self.baryWeight = 1.
         self.speedWeight = 1.
-        self.speed = None
+        self.dx = None
+        self.dy = None
+        self.dz = None
         self.acceleration = None
         self.status = self.ON_SIGHT
         self.parents = []
@@ -83,9 +85,16 @@ class Component(object):
         return self.x, self.y, self.z, self.rx, self.ry, self.rz
 
     def dist(self, other):
-        x2 = pow(other.x - self.x, 2)
-        y2 = pow(other.y - self.y, 2)
-        z2 = pow(other.z - self.z, 2)
+        dx = other.x - self.x
+        dy = other.y - self.y
+        dz = other.z - self.z
+        return dx, dy, dz
+
+    def dist2(self, other):
+        dx, dy, dz = self.dist(other)
+        x2 = pow(dx, 2)
+        y2 = pow(dy, 2)
+        z2 = pow(dz, 2)
         return np.sqrt(x2 + y2 + z2)
 
 
@@ -129,21 +138,24 @@ class Item(Component):
 
     def setBarycenter(self):
         if self.ref == self.COMPONENTS and len(self.components):
-            self.baryWeight = 0
-            self.x, self.y, self.z = 0, 0, 0
-            for component in self.components.values():
+            _baryWeight = 0
+            _x, _y, _z = 0, 0, 0
+            for name, component in self.components.items():
                 if component.status == self.ON_SIGHT:
                     try:
-                        self.x += component.x * component.baryWeight
-                        self.y += component.y * component.baryWeight
-                        self.z += component.z * component.baryWeight
-                        self.baryWeight += component.baryWeight
+                        _cx, _cy, _cz = [p * component.baryWeight for p in (component.x, component.y, component.z)]
+                        _x += _cx
+                        _y += _cy
+                        _z += _cz
+                        _baryWeight += component.baryWeight
                     except TypeError as e:
-                        print("{} : forgot to setup component".format(e))
-            if self.baryWeight != 0:
-                self.x /= self.baryWeight
-                self.y /= self.baryWeight
-                self.z /= self.baryWeight
+                        print("{} : forgot to setup position of component '{}'".format(e, name))
+            if _baryWeight != 0:
+                self.x, self.y, self.z = _x, _y, _z
+                self.x /= _baryWeight
+                self.y /= _baryWeight
+                self.z /= _baryWeight
+                self.baryWeight = _baryWeight
         elif self.ref == self.POINTCLOUD and self.pointCloud is not None:
             pass  # TODO
         else:
@@ -152,12 +164,15 @@ class Item(Component):
     def setOrientation(self):
         if self.ref == self.COMPONENTS and len(self.components):
             angleList = [[], [], []]
-            self.rx, self.ry, self.rz = 0, 0, 0
-            for component in self.components.values():
+            for name, component in self.components.items():
                 if component.status == self.ON_SIGHT:
-                    angleList[0].append(component.rx)
-                    angleList[1].append(component.ry)
-                    angleList[2].append(component.rz)
+                    try:
+                        _crx, _cry, _crz = component.rx * 1., component.ry * 1., component.rz * 1.
+                        angleList[0].append(_crx)
+                        angleList[1].append(_cry)
+                        angleList[2].append(_crz)
+                    except TypeError as e:
+                        print("{} : forgot to setup orientation of component '{}'".format(e, name))
             self.rx = circmean(angleList[0])
             self.ry = circmean(angleList[1])
             self.rz = circmean(angleList[2])
@@ -171,13 +186,26 @@ class Item(Component):
 
     def setSpeed(self):
         if self.ref == self.COMPONENTS and len(self.components):
-            self.speedWeight = 0
-            self.speed = 0
-            for component in self.components.values():
-                if component.status == self.ON_SIGHT and component.speed is not None:
-                    self.speed += component.speed
-                    self.speedWeight += component.speedWeight
-            self.speed /= self.speedWeight
+            _speedWeight = 0
+            _dx, _dy, _dz = 0, 0, 0
+            for name, component in self.components.items():
+                if component.status == self.ON_SIGHT:
+                    try:
+                        _cdx, _cdy, _cdz = [v * component.speedWeight for v in (component.dx, component.dy, component.dz)]
+                        _dx += _cdx
+                        _dy += _cdy
+                        _dz += _cdz
+                        _speedWeight += component.speedWeight
+                    except TypeError as e:
+                        # print("{} : forgot to setup speed of component '{}'".format(e, name))
+                        pass
+            if _speedWeight != 0:
+                self.dx, self.dy, self.dz = _dx, _dy, _dz
+                self.dx /= _speedWeight
+                self.dy /= _speedWeight
+                self.dz /= _speedWeight
+                self.speed /= _speedWeight
+                self.speedWeight = _speedWeight
         elif self.ref == self.POINTCLOUD and self.pointCloud is not None:
             pass  # TODO
         else:
@@ -213,7 +241,7 @@ class Item(Component):
                     otherComp = other.components[selfComp.name]
                     if selfComp.status == Component.ON_SIGHT and otherComp.status == Component.ON_SIGHT:
                         meanWeight = (selfComp.distWeight + otherComp.distWeight)/2.
-                        d += selfComp.dist(otherComp) * meanWeight
+                        d += selfComp.dist2(otherComp) * meanWeight
                         self.distWeight += meanWeight
             if self.distWeight != 0:
                 d /= self.distWeight
@@ -233,12 +261,16 @@ class Item(Component):
             name = oldComp.name
             if name in self.components.keys():  # speed relevant
                 if oldComp.status == Component.ON_SIGHT:
-                    deltaPose = self.components[name].dist(oldComp)
+                    dx, dy, dz = self.components[name].dist(oldComp)
                     deltaTime = self.getTime() - other.getTime()
                     if deltaTime != 0:
-                        self.components[name].speed = deltaPose / deltaTime
+                        self.components[name].dx = dx / deltaTime
+                        self.components[name].dx = dy / deltaTime
+                        self.components[name].dx = dz / deltaTime
                 else:
-                    self.components[name].speed = None
+                    self.components[name].dx = None
+                    self.components[name].dy = None
+                    self.components[name].dz = None
             else:  # keep track record even if lost
                 oldComp.status = Component.UNKNOWN
                 self.components[name] = oldComp
