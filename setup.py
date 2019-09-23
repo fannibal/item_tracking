@@ -8,7 +8,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="item_tracking",
-    version="1.0.7",
+    version="1.0.8",
     author="Fabrice POIRIER",
     author_email="fabrice.poirier@ensta-bretagne.org",
     description="A tracking algorithm for general purpose",

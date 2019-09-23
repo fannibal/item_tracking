@@ -96,7 +96,10 @@ class Component(object):
         y2 = pow(dy, 2)
         z2 = pow(dz, 2)
         return np.sqrt(x2 + y2 + z2)
-
+    
+    def resetSpeed(self):
+        self.dx, self.dy, self.dz = None, None, None # no speed
+        
 
 class Item(Component):
 
@@ -206,6 +209,16 @@ class Item(Component):
                 self.dz /= _speedWeight
                 self.speed /= _speedWeight
                 self.speedWeight = _speedWeight
+        elif self.ref == self.POINTCLOUD and self.pointCloud is not None:
+            pass  # TODO
+        else:
+            print("empty item, fill it first")
+                    
+    def resetItemSpeed(self):
+        if self.ref == self.COMPONENTS and len(self.components):
+            self.resetSpeed()
+            for component in self.components.values():
+                component.resetSpeed()
         elif self.ref == self.POINTCLOUD and self.pointCloud is not None:
             pass  # TODO
         else:

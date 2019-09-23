@@ -102,10 +102,12 @@ class Tracker(object):
                 youngster.setState(ItemHandler.UPDATE)
                 youngster.setTime(self.now())
             _ = elder > youngster
+            youngster.setSpeed()
 
     def deleteTracks(self, toDelete):
         for old in toDelete:
             delItem = self.trackedItems[old]
+            delItem.resetItemSpeed()
             if delItem.getState() == ItemHandler.NEW:  # ADD case : suppress entry
                 delItem.setState(ItemHandler.LOST)
                 delItem.status = Item.UNKNOWN
