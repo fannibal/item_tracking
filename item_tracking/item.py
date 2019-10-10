@@ -207,7 +207,6 @@ class Item(Component):
                 self.dx /= _speedWeight
                 self.dy /= _speedWeight
                 self.dz /= _speedWeight
-                self.speed /= _speedWeight
                 self.speedWeight = _speedWeight
         elif self.ref == self.POINTCLOUD and self.pointCloud is not None:
             pass  # TODO
@@ -278,8 +277,8 @@ class Item(Component):
                     deltaTime = self.getTime() - other.getTime()
                     if deltaTime != 0:
                         self.components[name].dx = dx / deltaTime
-                        self.components[name].dx = dy / deltaTime
-                        self.components[name].dx = dz / deltaTime
+                        self.components[name].dy = dy / deltaTime
+                        self.components[name].dz = dz / deltaTime
                 else:
                     self.components[name].dx = None
                     self.components[name].dy = None

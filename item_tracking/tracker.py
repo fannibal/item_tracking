@@ -132,7 +132,7 @@ if __name__ == "__main__":
     for k in range(len(itemList)):
         for it in itemList[k]:
             item = Item()
-            item.addComponent("onlyComp", x=it, y=0, z=0, rx=0, ry=0, rz=0)
+            item.setComponent("onlyComp", x=it, y=0, z=0, rx=0, ry=0, rz=0)
             tracker.addItem(item)
         tracker.updateTracking()
         for trackedItem in tracker.trackedItems:
