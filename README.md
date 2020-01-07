@@ -4,6 +4,7 @@
 This is a tracking package for items, which are define with a complete structure.
 Item can be define either by PointCloud as define in ROS, or with components.
 These components have 3D pose, orientation and size.
+It is possible to enable pose smoothing of components or item. The implemented smoothing is exponential smoothing.
 The tracking matches check each iteration the evolution of tracked items depending on how the parameters are set.
 
 ## Examples
