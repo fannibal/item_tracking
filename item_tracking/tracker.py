@@ -18,17 +18,33 @@ class Tracker(object):
         self.time_add = 1.
         self.time_del = 1.
         self.now = self.nowTime
+        self.compute_speed_from_components_speeds = False
+        self.with_items_pose_smoothing = False
+        self.with_components_pose_smoothing = False
+        self.components_pose_smoothing_coeff = 1.
+        self.items_pose_smoothing_coeff = 1.
 
     def setParams(self, **kwargs):
         self.thresholdDist = kwargs.get('thresholdDist', self.thresholdDist)
         self.time_add = kwargs.get('time_add', self.time_add)
         self.time_del = kwargs.get('time_del', self.time_del)
         self.now = kwargs.get('nowTime', self.now)
+        self.components_pose_smoothing_coeff = kwargs.get('components_pose_smoothing_coeff', self.components_pose_smoothing_coeff)
+        self.items_pose_smoothing_coeff = kwargs.get('items_pose_smoothing_coeff', self.items_pose_smoothing_coeff)
+        self.with_items_pose_smoothing = kwargs.get('with_items_pose_smoothing', self.with_items_pose_smoothing)
+        self.with_components_pose_smoothing = kwargs.get('with_components_pose_smoothing', self.with_components_pose_smoothing)
+        self.compute_speed_from_components_speeds = kwargs.get('compute_speed_from_components_speeds', self.compute_speed_from_components_speeds)
 
     def nowTime(self):
         return time.time()
 
     def addItem(self, item):
+        item.smoothing_coeff = self.items_pose_smoothing_coeff
+        item.smooth_poses = self.with_items_pose_smoothing
+        item.smooth_components_poses = self.with_components_pose_smoothing
+        item.components_smoothing_coeff = self.components_pose_smoothing_coeff
+        item.speed_from_component_speed = self.compute_speed_from_components_speeds
+        item.setSmoothedPose()
         self.newItems.append(item)
 
     def updateTracking(self):
@@ -102,7 +118,7 @@ class Tracker(object):
                 youngster.setState(ItemHandler.UPDATE)
                 youngster.setTime(self.now())
             _ = elder > youngster
-            youngster.setSpeed()
+            youngster.setSpeed(old_body=elder)
 
     def deleteTracks(self, toDelete):
         for old in toDelete:
