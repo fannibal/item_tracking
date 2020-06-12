@@ -35,6 +35,11 @@ class Component(object):
         self.distWeight = 1.
         self.baryWeight = 1.
         self.speedWeight = 1.
+        self.smooth_poses = False
+        self.smoothing_coeff = 1.
+        self.smoothed_x = None
+        self.smoothed_y = None
+        self.smoothed_z = None
         self.dx = None
         self.dy = None
         self.dz = None
@@ -49,6 +54,19 @@ class Component(object):
             self.y = y
         if z is not None:
             self.z = z
+
+    def updateSmoothedPose(self, other):
+        try:
+            self.smoothed_x = self.smoothing_coeff*self.x + (1 - self.smoothing_coeff)*other.smoothed_x
+            self.smoothed_y = self.smoothing_coeff*self.y + (1 - self.smoothing_coeff)*other.smoothed_y
+            self.smoothed_z = self.smoothing_coeff*self.z + (1 - self.smoothing_coeff)*other.smoothed_z
+        except TypeError as e:
+            print("TypeError in updateSmoothedPose::{}".format(e))
+            if self.x is None:
+                self.smoothed_x, self.smoothed_y, self.smoothed_z = other.smoothed_x, other.smoothed_y, other.smoothed_z
+                print("     Updating smoothed pose as former smoothed position")
+            if other.smoothed_x is None:
+                print("     Updating smoothed pose as current position")
 
     def updateOrientation(self, rx=None, ry=None, rz=None):
         if rx is not None:
@@ -84,10 +102,23 @@ class Component(object):
     def fullGet(self):
         return self.x, self.y, self.z, self.rx, self.ry, self.rz
 
+    def setSmoothedPose(self):
+        if self.x is not None:
+            self.smoothed_x = self.x
+        if self.y is not None:
+            self.smoothed_y = self.y
+        if self.z is not None:
+            self.smoothed_z = self.z
+
     def dist(self, other):
-        dx = other.x - self.x
-        dy = other.y - self.y
-        dz = other.z - self.z
+        if self.smooth_poses:
+            dx = self.smoothed_x - other.smoothed_x
+            dy = self.smoothed_y - other.smoothed_y
+            dz = self.smoothed_z - other.smoothed_z
+        else:
+            dx = self.x - other.x
+            dy = self.y - other.y
+            dz = self.z - other.z
         return dx, dy, dz
 
     def dist2(self, other):
@@ -96,10 +127,10 @@ class Component(object):
         y2 = pow(dy, 2)
         z2 = pow(dz, 2)
         return np.sqrt(x2 + y2 + z2)
-    
+
     def resetSpeed(self):
-        self.dx, self.dy, self.dz = None, None, None # no speed
-        
+        self.dx, self.dy, self.dz = None, None, None  # no speed
+
 
 class Item(Component):
 
@@ -113,6 +144,9 @@ class Item(Component):
         self.components = dict()
         self.pointCloud = None
         self.other = dict()  # dict of other characteristic (?)
+        self.smooth_components_poses = False
+        self.components_smoothing_coeff = False
+        self.compute_speed_from_components_speeds = False
 
     def setID(self, ID):
         self.itemHandler.ID = ID
@@ -138,14 +172,24 @@ class Item(Component):
         :param kwargs: x=0.5, ry=0.11, ...
         """
         self.components.setdefault(name, Component(name=name)).fullUpdate(**kwargs)
+        self.components[name].smoothing_coeff = self.components_smoothing_coeff
+        self.components[name].smooth_poses = self.smooth_components_poses
+        self.components[name].setSmoothedPose()
 
     def setBarycenter(self):
         if self.ref == self.COMPONENTS and len(self.components):
             _baryWeight = 0
+            _smoothed_barycenter = 0
             _x, _y, _z = 0, 0, 0
+            _sx, _sy, _sz = 0, 0, 0
             for name, component in self.components.items():
                 if component.status == self.ON_SIGHT:
                     try:
+                        if self.smooth_components_poses:
+                            _scx, _scy, _scz = [p * component.baryWeight for p in (component.smoothed_x, component.smoothed_y, component.smoothed_z)]
+                            _sx += _scx
+                            _sy += _scy
+                            _sz += _scz
                         _cx, _cy, _cz = [p * component.baryWeight for p in (component.x, component.y, component.z)]
                         _x += _cx
                         _y += _cy
@@ -159,6 +203,13 @@ class Item(Component):
                 self.y /= _baryWeight
                 self.z /= _baryWeight
                 self.baryWeight = _baryWeight
+                if self.smooth_components_poses:
+                    self.smoothed_x, self.smoothed_y, self.smoothed_z = _sx, _sy, _sz
+                    self.smoothed_x /= _baryWeight
+                    self.smoothed_y /= _baryWeight
+                    self.smoothed_z /= _baryWeight
+                if self.smooth_poses:
+                    self.setSmoothedPose()
         elif self.ref == self.POINTCLOUD and self.pointCloud is not None:
             pass  # TODO
         else:
@@ -187,32 +238,40 @@ class Item(Component):
     def setSize(self):
         pass  # How?
 
-    def setSpeed(self):
-        if self.ref == self.COMPONENTS and len(self.components):
-            _speedWeight = 0
-            _dx, _dy, _dz = 0, 0, 0
-            for name, component in self.components.items():
-                if component.status == self.ON_SIGHT:
-                    try:
-                        _cdx, _cdy, _cdz = [v * component.speedWeight for v in (component.dx, component.dy, component.dz)]
-                        _dx += _cdx
-                        _dy += _cdy
-                        _dz += _cdz
-                        _speedWeight += component.speedWeight
-                    except TypeError as e:
-                        # print("{} : forgot to setup speed of component '{}'".format(e, name))
-                        pass
-            if _speedWeight != 0:
-                self.dx, self.dy, self.dz = _dx, _dy, _dz
-                self.dx /= _speedWeight
-                self.dy /= _speedWeight
-                self.dz /= _speedWeight
-                self.speedWeight = _speedWeight
-        elif self.ref == self.POINTCLOUD and self.pointCloud is not None:
-            pass  # TODO
+    def setSpeed(self, old_body=None):
+        if self.compute_speed_from_components_speeds:
+            if self.ref == self.COMPONENTS and len(self.components):
+                _speedWeight = 0
+                _dx, _dy, _dz = 0, 0, 0
+                for name, component in self.components.items():
+                    if component.status == self.ON_SIGHT:
+                        try:
+                            _cdx, _cdy, _cdz = [v * component.speedWeight for v in (component.dx, component.dy, component.dz)]
+                            _dx += _cdx
+                            _dy += _cdy
+                            _dz += _cdz
+                            _speedWeight += component.speedWeight
+                        except TypeError as e:
+                            # print("{} : forgot to setup speed of component '{}'".format(e, name))
+                            pass
+                if _speedWeight != 0:
+                    self.dx, self.dy, self.dz = _dx, _dy, _dz
+                    self.dx /= _speedWeight
+                    self.dy /= _speedWeight
+                    self.dz /= _speedWeight
+                    self.speedWeight = _speedWeight
+            elif self.ref == self.POINTCLOUD and self.pointCloud is not None:
+                pass  # TODO
+            else:
+                print("empty item, fill it first")
         else:
-            print("empty item, fill it first")
-                    
+            dx, dy, dz = self.dist(old_body)
+            deltaTime = self.getTime() - old_body.getTime()
+            if deltaTime != 0:
+                self.dx = dx / deltaTime
+                self.dy = dy / deltaTime
+                self.dz = dz / deltaTime
+
     def resetItemSpeed(self):
         if self.ref == self.COMPONENTS and len(self.components):
             self.resetSpeed()
@@ -269,10 +328,14 @@ class Item(Component):
         Update self from other
         """
         self.setID(other.getID())
+        if self.smooth_poses:
+            self.updateSmoothedPose(other)
         for oldComp in other.components.values():
             name = oldComp.name
             if name in self.components.keys():  # speed relevant
                 if oldComp.status == Component.ON_SIGHT:
+                    if self.smooth_components_poses:
+                        self.components[name].updateSmoothedPose(oldComp)
                     dx, dy, dz = self.components[name].dist(oldComp)
                     deltaTime = self.getTime() - other.getTime()
                     if deltaTime != 0:
@@ -286,7 +349,6 @@ class Item(Component):
             else:  # keep track record even if lost
                 oldComp.status = Component.UNKNOWN
                 self.components[name] = oldComp
-
 
     def __gt__(self, other):
         """
