@@ -3,7 +3,7 @@
 
 import time
 import numpy as np
-from item import Item, ItemHandler
+from .item import Item, ItemHandler
 
 
 class Tracker(object):
