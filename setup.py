@@ -8,7 +8,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="item_tracking",
-    version="1.0.9",
+    version="1.0.10",
     author="Fabrice POIRIER",
     author_email="fabrice.poirier@ensta-bretagne.org",
     description="A tracking algorithm for general purpose",
@@ -18,6 +18,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3",
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: POSIX",
     ],
